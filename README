@@ -1,0 +1,37 @@
+This is a basic gesture recognition software for the Kinect.
+
+
+Dependencies:
+-python (2.7+)
+-libfreenect
+-opencv (3.0+) (for python)
+
+
+Intended overall method:
+
+The software works by using a depth mask from the Kinect to identify the closest object, and assumes it is a hand.
+After this, calibration occurs, where the user holds their hand palm forward and fingers extended to the camera.
+A convex hull is drawn around the hand; the highest point on the hull is the middle finger. Other fingers are identified as points relative to this one.
+The position of each finger point relative to the bottom of the hand is remembered.
+Now, as the hand moves (assumed to stay upright), each of these positions relative to the bottom of the hand is checked to see if a point on the hull is near that position.
+If one is, then that point must be that finger on the hand, so that finger must be extended.
+If no point is found there, then that finger must be closed. This way, combinations of open and closed fingers can represent commands, along with the hand's position.
+
+
+Implemented features:
+  -produce mask only of close objects
+  -finds biggest contour, assumes is hand, draws to screen
+
+
+Planned features:
+  -produce mask consisting only of hand
+  -track bottom of hand
+  -produce convex hull around hand
+  -calibration function to locate finger positions
+  -finger tracking function
+    -takes hand convex hull and array of finger positions relative to hand bottom
+    -returns array of 5 bools (finger open or closed?)
+  -error raised when no hand found
+  -gestures used to operate different programs
+    -mouse
+    -basic game (?)
