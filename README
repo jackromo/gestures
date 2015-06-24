@@ -21,13 +21,16 @@ If no point is found there, then that finger must be closed. This way, combinati
 Implemented features:
   -produce mask only of close objects
   -finds biggest contour, assumes is hand, draws to screen
+  -track bottom corner of hand, represents its position on screen
+  -function to find fingers (assumes upright open right hand facing camera) (use for calibration)
+    -takes convex hull of largest contour
+    -finds 'unique' points (remove clusters of adjacent points)
+    -highest point is middle finger, point to right is index, to left is ring, etc.
+    -return dictionary of finger names + coordinates
 
 
 Planned features:
-  -produce mask consisting only of hand
-  -track bottom of hand
-  -produce convex hull around hand
-  -calibration function to locate finger positions
+  -calibration function (use finger locating function)
   -finger tracking function
     -takes hand convex hull and array of finger positions relative to hand bottom
     -returns array of 5 bools (finger open or closed?)
