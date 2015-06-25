@@ -61,23 +61,22 @@ def getBottomRightPoint(cnt):
     return bottomRightPoint
 
 
-def findOpenFingerOffsets(handCnt):
-    fingerCoords = findOpenFingerCoords(handCnt)
-    bottomLeft = getBottomLeftPoint(handCnt)
-    fingerOffsets = { k : getCoordOffset(bottomLeft, fingerCoords[k]) for k in fingerCoords.keys()}
+def findOpenFingerOffsets(handCnt, isRight=True):
+    fingerCoords = findOpenFingerCoords(handCnt, isRight=isRight)
+    refPoint = getBottomLeftPoint(handCnt) if isRight else getBottomRightPoint(handCnt)
+    fingerOffsets = { k : getCoordOffset(refPoint, fingerCoords[k]) for k in fingerCoords.keys()}
     return fingerOffsets
 
 
-def findOpenFingerCoords(handCnt):
+def findOpenFingerCoords(handCnt, isRight=True):
     hullPnts = getUniqueHullPoints(handCnt)
     if len(hullPnts) < 5: return {}  # if less than 5 fingers, error
     midFingIndex = hullPnts.index(min(hullPnts, key=lambda x: x[1]))  # highest point on hull = middle finger
-    # assumes that hand is right hand
-    fingerCoords = {'thumb': hullPnts[(midFingIndex+2) % len(hullPnts)],
-            'index':    hullPnts[(midFingIndex+1) % len(hullPnts)],
-            'middle':   hullPnts[(midFingIndex) % len(hullPnts)],
-            'ring':     hullPnts[(midFingIndex-1) % len(hullPnts)],
-            'pinky':    hullPnts[(midFingIndex-2) % len(hullPnts)]}
+    fingerCoords = {}
+    fingOffsetsFromMiddle = {'thumb': 2, 'index': 1, 'middle': 0, 'ring': -1, 'pinky': -2}  # offsets for if right hand, take negative val if left hand
+    for finger in fingOffsetsFromMiddle.keys():
+        offsetFromMid = (1 if isRight else -1) * fingOffsetsFromMiddle[finger]
+        fingerCoords[finger] = hullPnts[(midFingIndex + offsetFromMid) % len(hullPnts)]
     return fingerCoords
 
 
@@ -114,16 +113,17 @@ def addCoords(p1, p2):
 
 
 class Hand(object):
-    def __init__(self):
+    def __init__(self, isRight=True):
         self.fingerOffsets = {}
         self.handPos = [0,0]
         self.handArea = 0
         self.calibrated = False
+        self.isRight = isRight
 
     def calibrate(self, mask):
         contours = getContours(mask)
         handCnt = getBiggestContour(contours)  # assume that biggest contour is hand
-        self.fingerOffsets = findOpenFingerOffsets(handCnt)
+        self.fingerOffsets = findOpenFingerOffsets(handCnt, isRight=self.isRight)
         self.handArea = cv2.moments(handCnt)['m00']
         self.calibrated = True
 
@@ -140,7 +140,7 @@ class Hand(object):
 
     def getHandPos(self, mask):
         handCnt = self.findHandCnt(mask)
-        return getBottomLeftPoint(handCnt)
+        return getBottomLeftPoint(handCnt) if self.isRight else getBottomRightPoint(handCnt)
 
 
 
@@ -149,7 +149,7 @@ class Hand(object):
 
 
 def main():  # test method
-    hand = Hand()
+    hand = Hand(isRight=False)
 
     while True:
         mask = getMask()
@@ -159,18 +159,21 @@ def main():  # test method
 
         rgbImg = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
         handCnt = getBiggestContour(contours)
+        refPoint = getBottomLeftPoint(handCnt) if hand.isRight else getBottomRightPoint(handCnt)
         img = cv2.drawContours(rgbImg, [handCnt], 0, (0,255,0), 3)
         for c in findOpenFingerCoords(handCnt).values():
             img = cv2.circle(img, tuple(c), 5, (0, 0, 255), -1)
-        img = cv2.circle(img, getBottomLeftPoint(handCnt), 5, (255, 0, 0), -1)
+        img = cv2.circle(img, refPoint, 5, (255, 0, 0), -1)
 
         # draw checked finger regions if calibrated
 
         if hand.calibrated:
+            fingDict = hand.getOpenFingers(mask)
             for k in hand.fingerOffsets.keys():
-                img = cv2.line(img, tuple(getBottomLeftPoint(handCnt)), \
-                        tuple(addCoords(hand.fingerOffsets[k], getBottomLeftPoint(handCnt))), (255, 0, 255), 3)
-                img = cv2.circle(img, tuple(addCoords(hand.fingerOffsets[k], getBottomLeftPoint(handCnt))), 25, (0, 255, 255), 2)
+                img = cv2.line(img, tuple(refPoint), \
+                        tuple(addCoords(hand.fingerOffsets[k], refPoint)), (255, 0, 255), 3)
+                circColor = (0, 255, 255) if fingDict[k] else (0, 0, 127)
+                img = cv2.circle(img, tuple(addCoords(hand.fingerOffsets[k], refPoint)), 25, circColor, 2)
 
         cv2.imshow('image', img)
 
