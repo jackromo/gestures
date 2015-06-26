@@ -1,4 +1,4 @@
-import freenect, cv2, math
+import freenect, cv2, math, time
 import numpy as np
 
 
@@ -12,13 +12,14 @@ def getDepthMap():
     # Decrease all values in depth map to within 8 bits to be uint8
     depth = np.clip(depth, 0, 2**10 - 1)
     depth >>= 2
+    depth = cv2.GaussianBlur(depth, (5,5), 0)
     return depth.astype(np.uint8)
 
 
 def getMask():
     depth = getDepthMap()
     darkestShade = depth.min()  # darkest shade = closest object (assume is hand)
-    ret, thresh = cv2.threshold(depth, darkestShade+20, 255, cv2.THRESH_BINARY_INV)
+    ret, thresh = cv2.threshold(depth, darkestShade+25, 255, cv2.THRESH_BINARY_INV)
     return thresh
 
 
@@ -50,28 +51,28 @@ def getBiggestContour(cnts):
 def getBottomLeftPoint(cnt):
     # b-left point of hand not altered by moving fingers of RIGHT hand
     x, y, w, h = cv2.boundingRect(cnt)
-    bottomLeftPoint = (x, y+h)
+    bottomLeftPoint = Point(x, y+h)
     return bottomLeftPoint
 
 
 def getBottomRightPoint(cnt):
     # b-right point of hand not altered by moving fingers of LEFT hand
     x, y, w, h = cv2.boundingRect(cnt)
-    bottomRightPoint = (x+w, y+h)
+    bottomRightPoint = Point(x+w, y+h)
     return bottomRightPoint
 
 
 def findOpenFingerOffsets(handCnt, isRight=True):
     fingerCoords = findOpenFingerCoords(handCnt, isRight=isRight)
     refPoint = getBottomLeftPoint(handCnt) if isRight else getBottomRightPoint(handCnt)
-    fingerOffsets = { k : getCoordOffset(refPoint, fingerCoords[k]) for k in fingerCoords.keys()}
+    fingerOffsets = { k : refPoint.getVectorTo(fingerCoords[k]) for k in fingerCoords.keys()}
     return fingerOffsets
 
 
 def findOpenFingerCoords(handCnt, isRight=True):
     hullPnts = getUniqueHullPoints(handCnt)
     if len(hullPnts) < 5: return {}  # if less than 5 fingers, error
-    midFingIndex = hullPnts.index(min(hullPnts, key=lambda x: x[1]))  # highest point on hull = middle finger
+    midFingIndex = hullPnts.index(min(hullPnts, key=lambda pnt: pnt.getY()))  # highest point on hull = middle finger
     fingerCoords = {}
     fingOffsetsFromMiddle = {'thumb': 2, 'index': 1, 'middle': 0, 'ring': -1, 'pinky': -2}  # offsets for if right hand, take negative val if left hand
     for finger in fingOffsetsFromMiddle.keys():
@@ -82,47 +83,77 @@ def findOpenFingerCoords(handCnt, isRight=True):
 
 def anyHullVerticesNear(cnt, point, radius=500):
     hullPnts = getUniqueHullPoints(cnt)
-    nearPnts = [p for p in hullPnts if getDistBetween(p, point) < radius]
+    nearPnts = [p for p in hullPnts if p.getDistTo(point) < radius]
     return len(nearPnts) > 0
 
 
 def getUniqueHullPoints(cnt):
     if cnt == None: return None
-    hullPnts = [x[0] for x in cv2.convexHull(cnt).tolist()]
+    hullPnts = [Point(pnt[0][0], pnt[0][1]) for pnt in cv2.convexHull(cnt).tolist()]  # pnt = [[x,y]], pnt[0] = [x,y]
     # point is unique if not too close to any other points (>10px away from other pnts)
     uniquePnts = [hullPnts[i] for i in range(len(hullPnts)) \
-            if getDistBetween(hullPnts[i], hullPnts[(i+1) % len(hullPnts)]) > 10]
+            if hullPnts[i].getDistTo(hullPnts[(i+1) % len(hullPnts)]) > 10]
     return uniquePnts
 
 
-def getDistBetween(p1, p2):
-    return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
 
-
-def getCoordOffset(p1, p2):
-    return [p2[0]-p1[0], p2[1]-p1[1]]
-
-
-def addCoords(p1, p2):
-    return [p2[0]+p1[0], p2[1]+p1[1]]
+################## spatial classes #######################
 
 
 
-################## hand class ########################
+class Point(object):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def getX(self):
+        return self.x
+    def getY(self):
+        return self.y
+    def setX(self, x):
+        self.x = x
+    def setY(self, y):
+        self.y = y
+    def toTuple(self):
+        return (self.getX(), self.getY())
+    def getDistTo(self, p2):
+        return math.sqrt((self.getX()-p2.getX())**2 + (self.getY()-p2.getY())**2)
+    def getVectorTo(self, p2):
+        return Vector(p2.getX()-self.getX(), p2.getY()-self.getY())
+    def addToCoord(self, p2):
+        return Point(p2.getX()+self.getX(), p2.getY()+self.getY())
+
+
+class Vector(object):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def getX(self):
+        return self.x
+    def getY(self):
+        return self.y
+    def setX(self, x):
+        self.x = x
+    def setY(self, y):
+        self.y = y
+    def translateCoord(self, pnt):
+        return Point(pnt.getX()+self.getX(), pnt.getY()+self.getY())
+
+
+
+################# hand classes #######################
 
 
 
 class Hand(object):
     def __init__(self, isRight=True):
         self.fingerOffsets = {}
-        self.handPos = [0,0]
+        self.handPos = Point(0,0)
         self.handArea = 0
         self.calibrated = False
         self.isRight = isRight
 
     def calibrate(self, mask):
-        contours = getContours(mask)
-        handCnt = getBiggestContour(contours)  # assume that biggest contour is hand
+        handCnt = self.findHandCnt(mask)
         self.fingerOffsets = findOpenFingerOffsets(handCnt, isRight=self.isRight)
         self.handArea = cv2.moments(handCnt)['m00']
         self.calibrated = True
@@ -135,12 +166,14 @@ class Hand(object):
         handCnt = self.findHandCnt(mask)
         openFingers = {}
         for finger in ['pinky', 'ring', 'middle', 'index', 'thumb']:
-            openFingers[finger] = anyHullVerticesNear(handCnt, addCoords(self.fingerOffsets[finger], self.getHandPos(mask)), radius=25)
+            openFingerPos = self.fingerOffsets[finger].translateCoord(self.getHandPos(mask))
+            openFingers[finger] = anyHullVerticesNear(handCnt, openFingerPos, radius=40)
         return openFingers
 
     def getHandPos(self, mask):
         handCnt = self.findHandCnt(mask)
-        return getBottomLeftPoint(handCnt) if self.isRight else getBottomRightPoint(handCnt)
+        self.handPos = getBottomLeftPoint(handCnt) if self.isRight else getBottomRightPoint(handCnt)
+        return self.handPos
 
 
 
@@ -162,18 +195,18 @@ def main():  # test method
         refPoint = getBottomLeftPoint(handCnt) if hand.isRight else getBottomRightPoint(handCnt)
         img = cv2.drawContours(rgbImg, [handCnt], 0, (0,255,0), 3)
         for c in findOpenFingerCoords(handCnt).values():
-            img = cv2.circle(img, tuple(c), 5, (0, 0, 255), -1)
-        img = cv2.circle(img, refPoint, 5, (255, 0, 0), -1)
+            img = cv2.circle(img, c.toTuple(), 5, (0, 0, 255), -1)
+        img = cv2.circle(img, refPoint.toTuple(), 5, (255, 0, 0), -1)
 
         # draw checked finger regions if calibrated
 
         if hand.calibrated:
             fingDict = hand.getOpenFingers(mask)
             for k in hand.fingerOffsets.keys():
-                img = cv2.line(img, tuple(refPoint), \
-                        tuple(addCoords(hand.fingerOffsets[k], refPoint)), (255, 0, 255), 3)
+                img = cv2.line(img, refPoint.toTuple(), \
+                        hand.fingerOffsets[k].translateCoord(refPoint).toTuple(), (255, 0, 255), 3)
                 circColor = (0, 255, 255) if fingDict[k] else (0, 0, 127)
-                img = cv2.circle(img, tuple(addCoords(hand.fingerOffsets[k], refPoint)), 25, circColor, 2)
+                img = cv2.circle(img, hand.fingerOffsets[k].translateCoord(refPoint).toTuple(), 25, circColor, 2)
 
         cv2.imshow('image', img)
 

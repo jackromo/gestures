@@ -22,7 +22,7 @@ Implemented features:
   -produce mask only of close objects
   -finds biggest contour, assumes is hand, draws to screen
   -track bottom corner of hand, represents its position on screen
-  -function to find fingers (assumes upright open right hand facing camera) (use for calibration)
+  -function to find fingers (assumes upright open hand facing camera) (use for calibration)
     -takes convex hull of largest contour
     -finds 'unique' points (remove clusters of adjacent points)
     -highest point is middle finger, point to right is index, to left is ring, etc.
@@ -31,8 +31,7 @@ Implemented features:
     -used for calibrating hand and getting dict of open fingers and hand position
     -for tracking gives dict of five bools (key = finger name, val = True if open, else False)
     -fully functional, but assumes that biggest contour is hand
-    -only works for right hand
-  -functionality for left hand, which hand is given at initialization of hand
+  -functionality for left and right hand, which hand is given at initialization of hand
 
 
 Planned features:
