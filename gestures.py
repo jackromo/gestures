@@ -62,23 +62,37 @@ def getBottomRightPoint(cnt):
     return bottomRightPoint
 
 
-def findOpenFingerOffsets(handCnt, isRight=True):
-    fingerCoords = findOpenFingerCoords(handCnt, isRight=isRight)
-    refPoint = getBottomLeftPoint(handCnt) if isRight else getBottomRightPoint(handCnt)
+def findOpenFingerOffsets(handCnt, isRightHand=True):
+    fingerCoords = findOpenFingerCoords(handCnt, isRightHand=isRightHand)
+    refPoint = getBottomLeftPoint(handCnt) if isRightHand else getBottomRightPoint(handCnt)
     fingerOffsets = { k : refPoint.getVectorTo(fingerCoords[k]) for k in fingerCoords.keys()}
     return fingerOffsets
 
 
-def findOpenFingerCoords(handCnt, isRight=True):
+def findOpenFingerCoords(handCnt, isRightHand=True):
+    """Get middle finger index. Vertex of hull before it is index finger, after is ring, 2 before is thumb, etc."""
     hullPnts = getUniqueHullPoints(handCnt)
     if len(hullPnts) < 5: return {}  # if less than 5 fingers, error
-    midFingIndex = hullPnts.index(min(hullPnts, key=lambda pnt: pnt.getY()))  # highest point on hull = middle finger
-    fingerCoords = {}
-    fingOffsetsFromMiddle = {'thumb': 2, 'index': 1, 'middle': 0, 'ring': -1, 'pinky': -2}  # offsets for if right hand, take negative val if left hand
-    for finger in fingOffsetsFromMiddle.keys():
-        offsetFromMid = (1 if isRight else -1) * fingOffsetsFromMiddle[finger]
-        fingerCoords[finger] = hullPnts[(midFingIndex + offsetFromMid) % len(hullPnts)]
+    midFingIndex = getMidFingIndex(hullPnts)
+    fingOffsetsFromMid = getFingIndexOffsetsFromMidFing(isRightHand=isRightHand)
+    fingerCoords = {fing : hullPnts[(midFingIndex + fingOffsetsFromMid[fing]) % len(hullPnts)] for fing in getFingList(isRightHand=isRightHand)}
     return fingerCoords
+
+
+def getFingIndexOffsetsFromMidFing(isRightHand=True):
+    fingers = getFingList(isRightHand=isRightHand)
+    fingOffsetsFromMiddle = {fing: fingers.index(fing) - fingers.index('middle') for fing in fingers}
+    return fingOffsetsFromMiddle
+
+
+def getMidFingIndex(hullPnts):
+    midFingCoords = min(hullPnts, key=lambda pnt: pnt.getY())  # assume highest point on hull = middle finger
+    return hullPnts.index(midFingCoords)
+
+
+def getFingList(isRightHand=True):
+    fingers = ['thumb', 'index', 'middle', 'ring', 'pinky']
+    return list(reversed(fingers)) if isRightHand else fingers
 
 
 def anyHullVerticesNear(cnt, point, radius=500):
@@ -154,7 +168,7 @@ class Hand(object):
 
     def calibrate(self, mask):
         handCnt = self.findHandCnt(mask)
-        self.fingerOffsets = findOpenFingerOffsets(handCnt, isRight=self.isRight)
+        self.fingerOffsets = findOpenFingerOffsets(handCnt, isRightHand=self.isRight)
         self.handArea = cv2.moments(handCnt)['m00']
         self.calibrated = True
 
@@ -165,7 +179,7 @@ class Hand(object):
     def getOpenFingers(self, mask):
         handCnt = self.findHandCnt(mask)
         openFingers = {}
-        for finger in ['pinky', 'ring', 'middle', 'index', 'thumb']:
+        for finger in getFingList(isRightHand=self.isRight):
             openFingerPos = self.fingerOffsets[finger].translateCoord(self.getHandPos(mask))
             openFingers[finger] = anyHullVerticesNear(handCnt, openFingerPos, radius=40)
         return openFingers
