@@ -2,9 +2,13 @@ This is a basic gesture recognition software for the Kinect.
 
 
 Dependencies:
--python (2.7+)
+-python (2.7+) (not python 3+)
 -libfreenect
 -opencv (3.0+) (for python)
+
+
+To run, type into console:
+  python main.py
 
 
 Intended overall method:
