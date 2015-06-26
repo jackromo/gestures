@@ -26,6 +26,7 @@ Implemented features:
   -produce mask only of close objects
   -finds biggest contour, assumes is hand, draws to screen
   -track bottom corner of hand, represents its position on screen
+    -which corner depends on hand used (l/r)
   -function to find fingers (assumes upright open hand facing camera) (use for calibration)
     -takes convex hull of largest contour
     -finds 'unique' points (remove clusters of adjacent points)
@@ -36,12 +37,15 @@ Implemented features:
     -for tracking gives dict of five bools (key = finger name, val = True if open, else False)
     -fully functional, but assumes that biggest contour is hand
   -functionality for left and right hand, which hand is given at initialization of hand
+  -HandStats class
+    -augmented hand class able to take samples of fingers and hand position at regular intervals over time
+    -can use sampling to infer hand velocity and acceleration vectors
+      -acceleration method is inaccurate (assumes acc is constant)
 
 
 Planned features:
   -able to detect when no hand is present
     -detect multiple hands (?)
-  -detect hand velocity and acceleration vectors
   -more robust detection (deal with random noise)
   -gestures used to operate different programs
     -mouse

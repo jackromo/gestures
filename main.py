@@ -4,11 +4,12 @@ from hand import *
 from coords import *
 from depthmap import *
 from contours import *
+from handstats import *
 
 
 
-def main():  # test method
-    hand = Hand(isRight=False)
+def main():
+    hand = HandStats(isRight=False)
 
     while True:
         mask = getMask()
@@ -27,20 +28,22 @@ def main():  # test method
         # draw checked finger regions if calibrated
 
         if hand.calibrated:
-            fingDict = hand.getOpenFingers(mask)
+            fingDict = hand.sampleOpenFingersForMsec(msec=50, intervalMsec=10)  # time to sample slows FPS of test
             for k in hand.fingerOffsets.keys():
                 img = cv2.line(img, refPoint.toTuple(), \
                         hand.fingerOffsets[k].translateCoord(refPoint).toTuple(), (255, 0, 255), 3)
-                circColor = (0, 255, 255) if fingDict[k] else (0, 0, 127)
+                circColor = (0, 255, 255) if fingDict[k]>0.5 else (0, 0, 127)
                 img = cv2.circle(img, hand.fingerOffsets[k].translateCoord(refPoint).toTuple(), 25, circColor, 2)
 
         cv2.imshow('image', img)
 
-        # request input, if c pressed then calibrate, if g pressed then print open fingers
+        # request input, if c pressed then calibrate, if g pressed then print open fingers, v and a print veloc and acc
 
-        key = cv2.waitKey(10) & 0xFF
+        key = cv2.waitKey(10) & 0xFF  # if 64 bit system, waitKey() gives result > 8 bits, ANDing with 11111111 removes extra ones
         if key == ord('c'):   hand.calibrate(mask)
         elif key == ord('g'): print hand.getOpenFingers(mask)
+        elif key == ord('v'): print hand.getHandVelocityVec(sampleTimeMsec=50, sampIntervalMsec=10).toTuple()
+        elif key == ord('a'): print hand.getHandAccelVec(sampleTimeMsec=100, sampIntervalMsec=10).toTuple()
 
 
 if __name__ == "__main__":
