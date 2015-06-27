@@ -11,6 +11,7 @@ def average(ls):
 
 
 def findOpenFingerOffsets(handCnt, isRightHand=True):
+    if handCnt==None: return None
     fingerCoords = findOpenFingerCoords(handCnt, isRightHand=isRightHand)
     refPoint = getBottomLeftPoint(handCnt) if isRightHand else getBottomRightPoint(handCnt)
     fingerOffsets = { k : refPoint.getVectorTo(fingerCoords[k]) for k in fingerCoords.keys()}
@@ -19,6 +20,7 @@ def findOpenFingerOffsets(handCnt, isRightHand=True):
 
 def findOpenFingerCoords(handCnt, isRightHand=True):
     """Get middle finger index. Vertex of hull before it is index finger, after is ring, 2 before is thumb, etc."""
+    if handCnt==None: return None
     hullPnts = getUniqueHullPoints(handCnt)
     if len(hullPnts) < 5: return {}  # if less than 5 fingers, error
     midFingIndex = getMidFingIndex(hullPnts)
@@ -53,16 +55,18 @@ class Hand(object):
         self.isRight = isRight
 
     def calibrate(self, mask):
-        handCnt = self.findHandCnt(mask)
+        handCnt = getBiggestContour(getContours(mask))
         self.fingerOffsets = findOpenFingerOffsets(handCnt, isRightHand=self.isRight)
         self.handArea = cv2.moments(handCnt)['m00']
         self.calibrated = True
 
     def findHandCnt(self, mask):
         contours = getContours(mask)
-        return getBiggestContour(contours)
+        # will be None if no viable hand contour found
+        return getContourWithArea(contours, self.handArea, floor=self.handArea/2.5, ceil=self.handArea+3000)
 
     def getOpenFingers(self, mask):
+        if not self.isOnScreen(mask): return None
         handCnt = self.findHandCnt(mask)
         openFingers = {}
         for finger in getFingList(isRightHand=self.isRight):
@@ -71,6 +75,14 @@ class Hand(object):
         return openFingers
 
     def getHandPos(self, mask):
+        if not self.isOnScreen(mask): return None
         handCnt = self.findHandCnt(mask)
         self.handPos = getBottomLeftPoint(handCnt) if self.isRight else getBottomRightPoint(handCnt)
         return self.handPos
+
+    def isCalibrated(self):
+        return self.calibrated
+
+    def isOnScreen(self, mask):
+        handCnt = self.findHandCnt(mask)
+        return True if handCnt != None else False

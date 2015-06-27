@@ -24,7 +24,7 @@ If no point is found there, then that finger must be closed. This way, combinati
 
 Implemented features:
   -produce mask only of close objects
-  -finds biggest contour, assumes is hand, draws to screen
+  -finds contour with area closest to area of hand, if within error bounds then considered to be hand
   -track bottom corner of hand, represents its position on screen
     -which corner depends on hand used (l/r)
   -function to find fingers (assumes upright open hand facing camera) (use for calibration)
@@ -39,14 +39,19 @@ Implemented features:
   -functionality for left and right hand, which hand is given at initialization of hand
   -HandStats class
     -augmented hand class able to take samples of fingers and hand position at regular intervals over time
+      -sampling allows for ignorance of random image noise
     -can use sampling to infer hand velocity and acceleration vectors
       -acceleration method is inaccurate (assumes acc is constant)
+  -able to detect when no hand is present
+    -Hand and HandStats methods to get open fingers, hand pos, etc. return None if no hand detected
+    -no longer detects contours if beyond a certain distance away
 
 
 Planned features:
-  -able to detect when no hand is present
-    -detect multiple hands (?)
-  -more robust detection (deal with random noise)
+  -refactor main() function (URGENT)
+  -detect multiple hands (?)
+  -deal with hand rotation to sides (?)
+    -recalibrate if hand rotates a certain amount
   -gestures used to operate different programs
     -mouse
     -basic game (?)

@@ -15,6 +15,7 @@ def getDepthMap():
 def getMask():
     depth = getDepthMap()
     darkestShade = depth.min()  # darkest shade = closest object (assume is hand)
+    darkestShade = np.clip(darkestShade, 0, 150)  # ignore if closest object is far away (ie. shade >= 150)
     ret, thresh = cv2.threshold(depth, darkestShade+25, 255, cv2.THRESH_BINARY_INV)
     return thresh
 
