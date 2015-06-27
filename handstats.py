@@ -6,8 +6,11 @@ from coords import *
 
 
 
+def average(ls):
+    return sum(ls)/float(len(ls))
+
 def performFuncOverInterval(func, *args, **kwargs):
-    interval = kwargs.pop('interval', 0.01)
+    interval = kwargs.pop('interval', 0.01)  # only kwarg = interval, default val = 0.01
     intervalStartTime = time.time()
     result = func(*args)
     timeTakenToSample = time.time() - intervalStartTime

@@ -6,10 +6,6 @@ import numpy as np
 
 
 
-def average(ls):
-    return sum(ls)/float(len(ls))
-
-
 def findOpenFingerOffsets(handCnt, isRightHand=True):
     if handCnt==None: return None
     fingerCoords = findOpenFingerCoords(handCnt, isRightHand=isRightHand)
@@ -22,7 +18,6 @@ def findOpenFingerCoords(handCnt, isRightHand=True):
     """Get middle finger index. Vertex of hull before it is index finger, after is ring, 2 before is thumb, etc."""
     if handCnt==None: return None
     hullPnts = getUniqueHullPoints(handCnt)
-    if len(hullPnts) < 5: return {}  # if less than 5 fingers, error
     midFingIndex = getMidFingIndex(hullPnts)
     fingOffsetsFromMid = getFingIndexOffsetsFromMidFing(isRightHand=isRightHand)
     fingerCoords = {fing : hullPnts[(midFingIndex + fingOffsetsFromMid[fing]) % len(hullPnts)] for fing in getFingList(isRightHand=isRightHand)}
@@ -68,10 +63,11 @@ class Hand(object):
     def getOpenFingers(self, mask):
         if not self.isOnScreen(mask): return None
         handCnt = self.findHandCnt(mask)
+        currentFingCoords = findOpenFingerCoords(handCnt, isRightHand=self.isRight)
         openFingers = {}
         for finger in getFingList(isRightHand=self.isRight):
-            openFingerPos = self.fingerOffsets[finger].translateCoord(self.getHandPos(mask))
-            openFingers[finger] = anyHullVerticesNear(handCnt, openFingerPos, radius=40)
+            fingPosIfOpen = self.fingerOffsets[finger].translateCoord(self.getHandPos(mask))
+            openFingers[finger] = True if fingPosIfOpen.getDistTo(currentFingCoords[finger]) < 40 else False
         return openFingers
 
     def getHandPos(self, mask):

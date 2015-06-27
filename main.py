@@ -1,4 +1,4 @@
-import math, time, cv2
+import math, time, cv2 #, freenect
 import numpy as np
 from hand import *
 from coords import *
@@ -21,7 +21,8 @@ def main():
         if hand.isCalibrated() and hand.isOnScreen(mask):
             img = drawHand(img, hand, mask)
         else:
-            img = highlightCnt(img, getBiggestContour(contours))
+            biggestCnt = getBiggestContour(contours)
+            img = highlightCnt(img, biggestCnt)
 
         cv2.imshow('image', img)
         handleKeyResponse(img, hand, mask)
@@ -29,7 +30,7 @@ def main():
 
 
 def drawHand(img, hand, mask):
-    fingDict = hand.sampleOpenFingersForMsec(msec=50, intervalMsec=10)  # time to sample slows FPS of test
+    fingDict = hand.getOpenFingers(mask)
     if fingDict != None:
         handCnt = hand.findHandCnt(mask)
         refPoint = hand.getHandPos(mask)

@@ -17,8 +17,8 @@ The software works by using a depth mask from the Kinect to identify the closest
 After this, calibration occurs, where the user holds their hand palm forward and fingers extended to the camera.
 A convex hull is drawn around the hand; the highest point on the hull is the middle finger. Other fingers are identified as points relative to this one.
 The position of each finger point relative to the bottom of the hand is remembered.
-Now, as the hand moves (assumed to stay upright), each of these positions relative to the bottom of the hand is checked to see if a point on the hull is near that position.
-If one is, then that point must be that finger on the hand, so that finger must be extended.
+Now, as the hand moves (assumed to stay upright), each of these positions relative to the bottom of the hand is checked to see if the corresponding point on the hull is near that position.
+If it is, then that point must be that finger on the hand, so that finger must be extended.
 If no point is found there, then that finger must be closed. This way, combinations of open and closed fingers can represent commands, along with the hand's position.
 
 
