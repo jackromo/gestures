@@ -38,7 +38,7 @@ Implemented features:
     -fully functional, but assumes that biggest contour is hand
   -functionality for left and right hand, which hand is given at initialization of hand
   -HandStats class
-    -augmented hand class able to take samples of fingers and hand position at regular intervals over time
+    -augmented hand class, able to take samples of fingers and hand position at regular intervals over time
       -sampling allows for ignorance of random image noise
     -can use sampling to infer hand velocity and acceleration vectors
       -acceleration method is inaccurate (assumes acc is constant)
@@ -48,7 +48,6 @@ Implemented features:
 
 
 Planned features:
-  -refactor main() function (URGENT)
   -detect multiple hands (?)
   -deal with hand rotation to sides (?)
     -recalibrate if hand rotates a certain amount

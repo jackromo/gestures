@@ -39,19 +39,20 @@ class HandStats(Hand):
     def sampleHandPosForMsec(self, msec=50, intervalMsec=10):
         handPosList = []
         startTime = time.time()
-        while(time.time() - startTime) < (msec/1000.0):
+        while (time.time() - startTime) < (msec/1000.0):
             handPosList = performFuncOverInterval(self.addNewHandPosSample, handPosList, interval=intervalMsec/1000.0)
         return handPosList
 
     def addNewHandPosSample(self, prevSamps):
         handPos = self.getHandPos(getMask())
-        if not handPos==None or prevSamps==None: return None  # if hand not on screen in past sample, result remains None
+        if handPos==None or prevSamps==None: return None  # if hand not on screen in past sample, result remains None
         prevSamps.append(handPos)
         return prevSamps
 
     def getHandVelocityVec(self, sampleTimeMsec=50, sampIntervalMsec=10):
         if not self.isOnScreen(getMask()): return None
         handPosList = self.sampleHandPosForMsec(msec=sampleTimeMsec, intervalMsec=sampIntervalMsec)
+        if handPosList==None or len(handPosList)==0: return None
         getSpeedVec = lambda p1, p2, time: Vector((p2.getX()-p1.getX())/time, (p2.getY()-p1.getY())/time)
         speedsList = [getSpeedVec(handPosList[i], handPosList[i+1], sampIntervalMsec/1000.0) for i in range(len(handPosList)-1)]
         averageSpeedVec = Vector(average([p.getX() for p in speedsList]), average([p.getY() for p in speedsList]))
@@ -63,5 +64,6 @@ class HandStats(Hand):
         speedSampleTime = sampleTimeMsec/2.0
         veloc1 = self.getHandVelocityVec(sampleTimeMsec=speedSampleTime, sampIntervalMsec=sampIntervalMsec)
         veloc2 = self.getHandVelocityVec(sampleTimeMsec=speedSampleTime, sampIntervalMsec=sampIntervalMsec)
+        if veloc1==None or veloc2==None: return None
         accelerationVec = Vector((veloc2.getX()-veloc1.getX())/(sampleTimeMsec/1000.0), (veloc2.getY()-veloc1.getY())/(sampleTimeMsec/1000.0))
         return accelerationVec
