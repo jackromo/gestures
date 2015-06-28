@@ -9,7 +9,7 @@ from handstats import *
 
 
 def main():
-    hand = HandStats(isRight=False)
+    hand = HandStats(isRight=True)
 
     while True:
         mask = getMask()
@@ -23,7 +23,6 @@ def main():
         else:
             biggestCnt = getBiggestContour(contours)
             img = highlightCnt(img, biggestCnt)
-
         cv2.imshow('image', img)
         handleKeyResponse(img, hand, mask)
 
@@ -79,7 +78,7 @@ def handleKeyResponse(img, hand, mask):
     elif hand.isOnScreen(mask):
         if key == 'g': print hand.getOpenFingers(mask)
         elif key == 'v':
-            velocVec = hand.getHandVelocityVec(sampleTimeMsec=100, sampIntervalMsec=10)
+            velocVec = hand.getHandVelocityVec(sampleTimeMsec=150, sampIntervalMsec=10)
             print velocVec.toTuple() if velocVec != None else "no result"
         elif key == 'a':
             accVec = hand.getHandAccelVec(sampleTimeMsec=200, sampIntervalMsec=10)
