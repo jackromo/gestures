@@ -36,6 +36,10 @@ class Vector(object):
         self.x = x
     def setY(self, y):
         self.y = y
+    def getGradient(self):
+        return self.y/float(self.x)
+    def multWithConst(self, const):
+        return Vector(self.getX()*const, self.getY()*const)
     def translateCoord(self, pnt):
         return Point(pnt.getX()+self.getX(), pnt.getY()+self.getY())
     def toTuple(self):

@@ -6,9 +6,6 @@ from coords import *
 
 
 
-def average(ls):
-    if len(ls)>0: return sum(ls)/float(len(ls))
-    else: return 0
 
 
 def performFuncOverInterval(func, *args, **kwargs):

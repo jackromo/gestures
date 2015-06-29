@@ -63,11 +63,10 @@ class Hand(object):
     def getOpenFingers(self, mask):
         if not self.isOnScreen(mask): return None
         handCnt = self.findHandCnt(mask)
-        currentFingCoords = findOpenFingerCoords(handCnt, isRightHand=self.isRight)
         openFingers = {}
         for finger in getFingList(isRightHand=self.isRight):
             fingPosIfOpen = self.fingerOffsets[finger].translateCoord(self.getHandPos(mask))
-            openFingers[finger] = True if fingPosIfOpen.getDistTo(currentFingCoords[finger]) < 40 else False
+            openFingers[finger] = True if anyHullVerticesNear(handCnt, fingPosIfOpen, radius=25) else False
         return openFingers
 
     def getHandPos(self, mask):

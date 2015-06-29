@@ -5,6 +5,7 @@ from coords import *
 from depthmap import *
 from contours import *
 from handstats import *
+from circles import *
 
 
 
@@ -23,6 +24,20 @@ def main():
         else:
             biggestCnt = getBiggestContour(contours)
             img = highlightCnt(img, biggestCnt)
+            # test code
+            hull = [Point(cnt[0][0], cnt[0][1]) for cnt in cv2.convexHull(biggestCnt).tolist()]
+            #for i in range(len(hull)):
+            #    img = cv2.line(img, hull[i].toTuple(), hull[(i+1)%len(hull)].toTuple(), (255, 0, 255), 3)
+            pntLs = getContourConvexDefects(biggestCnt)
+            pntLs = [pnt for pnt in pntLs if not any([p.getDistTo(pnt)<30 for p in getUniqueHullPoints(biggestCnt)])]
+            if pntLs != None and len(pntLs)>=2:
+                circle = getSmallestEnclosingCirc(pntLs)
+                center = circle.getCenter()
+                radius = circle.getRadius()
+                img = cv2.circle(img, (int(center.getX()), int(center.getY())), int(radius), (0,127,127), 2)
+                img = cv2.circle(img, (int(center.getX()), int(center.getY())), 5, (0, 255, 255), -1)
+                for i in range(len(pntLs)):
+                    img = cv2.circle(img, pntLs[i].toTuple(), 5, (0,0,255), -1)
         cv2.imshow('image', img)
         handleKeyResponse(img, hand, mask)
 
@@ -56,7 +71,7 @@ def drawFingDetectionRegion(img, hand, refPoint=Point(0,0), fingName='thumb', is
     img = cv2.line(img, refPoint.toTuple(), \
             hand.fingerOffsets[fingName].translateCoord(refPoint).toTuple(), (255, 0, 255), 3)
     circColor = (0, 255, 255) if isFingOpen else (0, 0, 127)
-    img = cv2.circle(img, hand.fingerOffsets[fingName].translateCoord(refPoint).toTuple(), 25, circColor, 2)
+    img = cv2.circle(img, hand.fingerOffsets[fingName].translateCoord(refPoint).toTuple(), 50, circColor, 2)
     return img
 
 

@@ -1,7 +1,11 @@
-import cv2
+import cv2, math
 import numpy as np
 from coords import *
 
+
+def average(ls):
+    if len(ls)>0: return sum(ls)/float(len(ls))
+    else: return 0
 
 
 def getContourWithArea(cnts, area, floor=500, ceil=1000):
@@ -46,3 +50,20 @@ def getUniqueHullPoints(cnt):
     # point is unique if not too close to any other points (>10px away from other pnts)
     uniquePnts = [hullPnts[i] for i in range(len(hullPnts)) if hullPnts[i].getDistTo(hullPnts[(i+1) % len(hullPnts)]) > 10]
     return uniquePnts
+
+
+def getContourConvexDefects(cnt):
+    hull = cv2.convexHull(cnt, returnPoints=False)
+    defects = cv2.convexityDefects(cnt, hull).tolist()
+    maxDefectPoints = [pnt[0][2] for pnt in defects]
+    return [Point(cnt[f][0][0], cnt[f][0][1]) for f in maxDefectPoints]
+
+
+def getApproxContourPolygon(cnt, accuracy=0.01):
+    epsilon = accuracy*cv2.arcLength(cnt, True)
+    approxPoly = cv2.approxPolyDP(cnt, epsilon, True).tolist()
+    return [Point(pnt[0][0], pnt[0][1]) for pnt in approxPoly]
+
+
+def isPointInContour(pnt, cnt):
+    return cv2.pointPolygonTest(cnt, pnt.toTuple(), False) == 1
