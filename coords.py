@@ -1,6 +1,10 @@
 import math
 
 
+def average(ls):
+    if len(ls)>0: return sum(ls)/float(len(ls))
+    else: return 0
+
 
 class Point(object):
     def __init__(self, x, y):
@@ -15,7 +19,7 @@ class Point(object):
     def setY(self, y):
         self.y = y
     def toTuple(self):
-        return (self.getX(), self.getY())
+        return (int(self.getX()), int(self.getY()))
     def getDistTo(self, p2):
         return math.sqrt((self.getX()-p2.getX())**2 + (self.getY()-p2.getY())**2)
     def getVectorTo(self, p2):
@@ -43,4 +47,4 @@ class Vector(object):
     def translateCoord(self, pnt):
         return Point(pnt.getX()+self.getX(), pnt.getY()+self.getY())
     def toTuple(self):
-        return (self.getX(), self.getY())
+        return (int(self.getX()), int(self.getY()))

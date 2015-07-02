@@ -14,30 +14,18 @@ def main():
 
     while True:
         mask = getMask()
+        depthMap = getDepthMap()
         contours = getContours(mask)
         if len(contours)==0: continue
 
-        img = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+        img = cv2.cvtColor(depthMap, cv2.COLOR_GRAY2RGB)
 
         if hand.isCalibrated() and hand.isOnScreen(mask):
             img = drawHand(img, hand, mask)
         else:
             biggestCnt = getBiggestContour(contours)
             img = highlightCnt(img, biggestCnt)
-            # test code
-            hull = [Point(cnt[0][0], cnt[0][1]) for cnt in cv2.convexHull(biggestCnt).tolist()]
-            #for i in range(len(hull)):
-            #    img = cv2.line(img, hull[i].toTuple(), hull[(i+1)%len(hull)].toTuple(), (255, 0, 255), 3)
-            pntLs = getContourConvexDefects(biggestCnt)
-            pntLs = [pnt for pnt in pntLs if not any([p.getDistTo(pnt)<30 for p in getUniqueHullPoints(biggestCnt)])]
-            if pntLs != None and len(pntLs)>=2:
-                circle = getSmallestEnclosingCirc(pntLs)
-                center = circle.getCenter()
-                radius = circle.getRadius()
-                img = cv2.circle(img, (int(center.getX()), int(center.getY())), int(radius), (0,127,127), 2)
-                img = cv2.circle(img, (int(center.getX()), int(center.getY())), 5, (0, 255, 255), -1)
-                for i in range(len(pntLs)):
-                    img = cv2.circle(img, pntLs[i].toTuple(), 5, (0,0,255), -1)
+
         cv2.imshow('image', img)
         handleKeyResponse(img, hand, mask)
 
@@ -47,12 +35,12 @@ def drawHand(img, hand, mask):
     fingDict = hand.getOpenFingers(mask)
     if fingDict != None:
         handCnt = hand.findHandCnt(mask)
-        refPoint = hand.getHandPos(mask)
+        handCirc = hand.getPalmCircle(mask)
         img = highlightCnt(img, handCnt)
         for fing in getFingList():
-            img = drawFingDetectionRegion(img, hand, refPoint=refPoint, fingName=fing, isFingOpen=(fingDict[fing]>0.5))
+            img = drawFingDetectionRegion(img, hand, refPoint=handCirc.getCenter(), fingName=fing, isFingOpen=(fingDict[fing]>0.5))
         img = drawHandCntEndFingPoints(img, handCnt)
-        img = drawHandRefPoint(img, refPoint)
+        img = drawPalmCircle(img, handCirc)
         img = drawTextInCorner(img, 'Hand Found')
     return img
 
@@ -62,8 +50,9 @@ def highlightCnt(img, cnt):
     return img
 
 
-def drawHandRefPoint(img, refPoint):
-    img = cv2.circle(img, refPoint.toTuple(), 5, (255, 0, 0), -1)
+def drawPalmCircle(img, handCirc):
+    img = cv2.circle(img, handCirc.getCenter().toTuple(), int(handCirc.getRadius()), (255, 0, 0), 3)
+    img = cv2.circle(img, handCirc.getCenter().toTuple(), 5, (255, 0, 0), -1)
     return img
 
 
@@ -98,7 +87,6 @@ def handleKeyResponse(img, hand, mask):
         elif key == 'a':
             accVec = hand.getHandAccelVec(sampleTimeMsec=200, sampIntervalMsec=10)
             print accVec.toTuple() if accVec != None else "no result"
-
 
 
 

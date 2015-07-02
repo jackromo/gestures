@@ -5,8 +5,8 @@ import math
 
 class Circle(object):
     def __init__(self, center, radius):
-        self.center = center
-        self.radius = radius
+        self.center = Point(float(center.getX()), float(center.getY()))
+        self.radius = float(radius)
     def getCenter(self):
         return self.center
     def getRadius(self):
@@ -18,57 +18,28 @@ class Circle(object):
     def getArea(self):
         return math.pi*(self.getRadius()**2)
     def containsPnt(self, pnt):
-        return pnt.getDistTo(self.getCenter()) <= self.getRadius()
+        return pnt.getDistTo(self.getCenter()) <= (self.getRadius()+1) # margin of error = 1
 
 
 def getSmallestEnclosingCirc(pntLs):
-    print [pnt.toTuple() for pnt in pntLs]
-    circle = None
-    for (i,pnt) in enumerate(pntLs):
-        if circle==None or not circle.containsPnt(pnt):
-            circle = getCircOneEdgePoint(pntLs[0:i+1], pnt)
-            #print getCircOneEdgePoint(pntLs, pntLs[len(pntLs)-1])
-    #print circle
-    return circle
+    if pntLs==None or len(pntLs)==0: return None
+    elif len(pntLs)==1: return Circle(pntLs[0], 0)
+    candidateCircs = getAllPossibleEnclosingCircs(pntLs)
+    if len(candidateCircs)==0: return None
+    return min(candidateCircs, key=lambda circ: circ.getArea())
 
 
-def getCircOneEdgePoint(pntLs, p1):
-    circle = Circle(p1, 0)
-    for (i, p2) in enumerate(pntLs):
-        if p2 is p1: continue
-        if not circle.containsPnt(p2):
-            if circle.getRadius() == 0:
-                circle = Circle(Point((p1.getX()+p2.getX())/2, (p1.getY()+p2.getY())/2), p1.getDistTo(p2)/2)
-            else:
-                circle = getCircTwoEdgePoints(pntLs[0:i+1], p1, p2)
-                #print getCircTwoEdgePoints(pntLs[0:i+1], p1, p1)
-    return circle
-
-
-def getCircTwoEdgePoints(pntLs, p1, p2):
-    circle = Circle(Point((p1.getX()+p2.getX())/2, (p1.getY()+p2.getY())/2), p1.getDistTo(p2)/2)
-    if all([circle.containsPnt(p) for p in pntLs]):
-        return circle
-    left = None
-    right = None
-    for p3 in pntLs:
-        cross = crossProduct(p1, p2, p3)
-        circle = getCircumCircle(p1, p2, p3)
-        if circle == None: continue
-        elif cross > 0 and (left is None or crossProduct(p1, p2, circle.getCenter()) > crossProduct(p1, p2, left.getCenter())):
-            left = circle
-        elif cross < 0 and (right is None or crossProduct(p1, p2, circle.getCenter()) < crossProduct(p1, p2, right.getCenter())):
-            right = circle
-
-    if right is None or (left is not None and left.getRadius() <= right.getRadius()):
-        print "left ", left.getRadius()
-        return left
-    else:
-        print "right", right.getRadius()
-        return right
+def getAllPossibleEnclosingCircs(pntLs):
+    pntPairs = getAllUniqueItemPairs(pntLs)
+    pntTrips = getAllUniqueItemTriplets(pntLs)
+    twoPntCircs = [getCircTwoPointsOnDiam(pair[0],pair[1]) for pair in pntPairs]
+    threePntCircs = [getCircumCircle(trip[0], trip[1], trip[2]) for trip in pntTrips]
+    allPossibleEnclosingCircs = twoPntCircs + threePntCircs
+    return filter(lambda circ: circ is not None and all([circ.containsPnt(pnt) for pnt in pntLs]), allPossibleEnclosingCircs)
 
 
 def getCircumCircle(p1, p2, p3):
+    """algorithm from Wikipedia (see circumcircle: cartesian coordinates)"""
     ax = p1.getX(); ay = p1.getY()
     bx = p2.getX(); by = p2.getY()
     cx = p3.getX(); cy = p3.getY()
@@ -76,9 +47,19 @@ def getCircumCircle(p1, p2, p3):
     if d==0: return None
     x = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d
     y = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d
-    return Circle(Point(x, y), p1.getDistTo(Point(x,y)))
+    center = Point(x, y)
+    return Circle(center, p1.getDistTo(center))
 
 
-def crossProduct(p0, p1, p2):
-    """2*signed area for triangle with corners p0,p1,p2"""
-    return (p1.getX() - p0.getX()) * (p2.getY() - p0.getY()) - (p1.getY() - p0.getY()) * (p2.getX() - p0.getX())
+def getCircTwoPointsOnDiam(p1, p2):
+    midPoint = Point(average([p1.getX(), p2.getX()]), average([p1.getY(), p2.getY()]))
+    radius = p1.getDistTo(p2)/2
+    return Circle(midPoint, radius)
+
+
+def getAllUniqueItemPairs(ls):
+    return [(ls[i], ls[j]) for j in range(len(ls)-1) for i in range(j+1, len(ls))]
+
+
+def getAllUniqueItemTriplets(ls):
+    return [(ls[j], ls[i], ls[k]) for j in range(len(ls)-2) for i in range(j+1, len(ls)-1) for k in range(i+1, len(ls))]

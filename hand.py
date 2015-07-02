@@ -1,15 +1,15 @@
 import cv2, math, time
 from coords import *
 from depthmap import *
+from circles import *
 from contours import *
 import numpy as np
 
 
 
-def findOpenFingerOffsets(handCnt, isRightHand=True):
+def findOpenFingerOffsets(handCnt, refPoint, isRightHand=True):
     if handCnt==None: return None
     fingerCoords = findOpenFingerCoords(handCnt, isRightHand=isRightHand)
-    refPoint = getBottomLeftPoint(handCnt) if isRightHand else getBottomRightPoint(handCnt)
     fingerOffsets = { k : refPoint.getVectorTo(fingerCoords[k]) for k in fingerCoords.keys()}
     return fingerOffsets
 
@@ -44,21 +44,24 @@ def getFingList(isRightHand=True):
 class Hand(object):
     def __init__(self, isRight=True):
         self.fingerOffsets = {}
-        self.handPos = Point(0,0)
+        self.palmCirc = None
         self.handArea = 0
         self.calibrated = False
         self.isRight = isRight
 
     def calibrate(self, mask):
         handCnt = getBiggestContour(getContours(mask))
-        self.fingerOffsets = findOpenFingerOffsets(handCnt, isRightHand=self.isRight)
+        self.palmCirc = self.getPalmCircle(mask)
+        refPoint = self.palmCirc.getCenter()
+        self.fingerOffsets = findOpenFingerOffsets(handCnt, refPoint, isRightHand=self.isRight)
         self.handArea = cv2.moments(handCnt)['m00']
         self.calibrated = True
 
     def findHandCnt(self, mask):
         contours = getContours(mask)
         # will be None if no viable hand contour found
-        return getContourWithArea(contours, self.handArea, floor=self.handArea/2.5, ceil=self.handArea+3000)
+        if not self.calibrated: return getBiggestContour(contours)
+        else: return getContourWithArea(contours, self.handArea, floor=self.handArea/2.5, ceil=self.handArea+3000)
 
     def getOpenFingers(self, mask):
         if not self.isOnScreen(mask): return None
@@ -72,8 +75,27 @@ class Hand(object):
     def getHandPos(self, mask):
         if not self.isOnScreen(mask): return None
         handCnt = self.findHandCnt(mask)
-        self.handPos = getBottomLeftPoint(handCnt) if self.isRight else getBottomRightPoint(handCnt)
-        return self.handPos
+        self.palmCirc = self.getPalmCircle(mask)
+        return self.palmCirc.getCenter()
+
+    def getPalmCircle(self, mask):
+        """Assume that hand is open on first run."""
+        # TOO LONG, REFACTOR LATER
+        if self.calibrated and not self.isOnScreen(mask): return None
+        handCnt = self.findHandCnt(mask)
+        defectPnts = getContourConvexDefects(handCnt, minSize=15, maxSize=80)
+        cntPnts = [Point(pnt[0][0], pnt[0][1]) for pnt in handCnt.tolist()]
+        palmCircPnts = []
+        if self.palmCirc != None:
+            noFingerRange = Circle(self.palmCirc.getCenter(), self.palmCirc.getRadius()+20)  # make sure highest point for palm isn't fingertip
+            cntPntsInErrorBounds = filter(lambda pnt: noFingerRange.containsPnt(pnt), cntPnts)
+            if len(cntPntsInErrorBounds)>0: highestNotFingPnt = min(cntPntsInErrorBounds, key=lambda pnt: pnt.getY())
+            else:                           highestNotFingPnt = min(cntPnts, key=lambda pnt: pnt.getY())
+        if defectPnts==None or len(defectPnts)==0: palmCircPnts.append(highestNotFingPnt)
+        else: palmCircPnts += defectPnts
+        lowestPnt = max(cntPnts, key=lambda pnt: pnt.getY())
+        palmCircPnts.append(lowestPnt)
+        return getSmallestEnclosingCirc(palmCircPnts)
 
     def isCalibrated(self):
         return self.calibrated
