@@ -51,7 +51,6 @@ Implemented features:
 
 
 Planned features:
-  -refactor getPalmCircle() method of hand
   -change finger detection algorithm to increase robustness
     -eg. any point on hull certain dist from palm circle = fingertip, angle from center = which one (?)
   -detect multiple hands (?)

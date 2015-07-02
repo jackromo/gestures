@@ -40,6 +40,15 @@ def getFingList(isRightHand=True):
     return list(reversed(fingers)) if isRightHand else fingers
 
 
+def getHighestNotFingPnt(hand, mask):
+    handCntPnts = getCntPntLs(hand.findHandCnt(mask))
+    noFingerRange = Circle(hand.palmCirc.getCenter(), hand.palmCirc.getRadius()+20)  # make sure highest point for palm isn't fingertip
+    cntPntsInErrorBounds = filter(lambda pnt: noFingerRange.containsPnt(pnt), handCntPnts)
+    if len(cntPntsInErrorBounds)>0: highestNotFingPnt = min(cntPntsInErrorBounds, key=lambda pnt: pnt.getY())
+    else:                           highestNotFingPnt = min(handCntPnts, key=lambda pnt: pnt.getY())
+    return highestNotFingPnt
+
+
 
 class Hand(object):
     def __init__(self, isRight=True):
@@ -61,7 +70,7 @@ class Hand(object):
         contours = getContours(mask)
         # will be None if no viable hand contour found
         if not self.calibrated: return getBiggestContour(contours)
-        else: return getContourWithArea(contours, self.handArea, floor=self.handArea/2.5, ceil=self.handArea+3000)
+        else: return getContourWithArea(contours, self.handArea, floor=self.handArea/2.5, ceil=self.handArea*2.5)
 
     def getOpenFingers(self, mask):
         if not self.isOnScreen(mask): return None
@@ -80,20 +89,14 @@ class Hand(object):
 
     def getPalmCircle(self, mask):
         """Assume that hand is open on first run."""
-        # TOO LONG, REFACTOR LATER
         if self.calibrated and not self.isOnScreen(mask): return None
         handCnt = self.findHandCnt(mask)
         defectPnts = getContourConvexDefects(handCnt, minSize=15, maxSize=80)
-        cntPnts = [Point(pnt[0][0], pnt[0][1]) for pnt in handCnt.tolist()]
         palmCircPnts = []
-        if self.palmCirc != None:
-            noFingerRange = Circle(self.palmCirc.getCenter(), self.palmCirc.getRadius()+20)  # make sure highest point for palm isn't fingertip
-            cntPntsInErrorBounds = filter(lambda pnt: noFingerRange.containsPnt(pnt), cntPnts)
-            if len(cntPntsInErrorBounds)>0: highestNotFingPnt = min(cntPntsInErrorBounds, key=lambda pnt: pnt.getY())
-            else:                           highestNotFingPnt = min(cntPnts, key=lambda pnt: pnt.getY())
-        if defectPnts==None or len(defectPnts)==0: palmCircPnts.append(highestNotFingPnt)
+        if self.palmCirc!=None and (defectPnts==None or len(defectPnts)==0):
+            palmCircPnts.append(getHighestNotFingPnt(self, mask))
         else: palmCircPnts += defectPnts
-        lowestPnt = max(cntPnts, key=lambda pnt: pnt.getY())
+        lowestPnt = max(getCntPntLs(handCnt), key=lambda pnt: pnt.getY())
         palmCircPnts.append(lowestPnt)
         return getSmallestEnclosingCirc(palmCircPnts)
 

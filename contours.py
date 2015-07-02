@@ -66,5 +66,9 @@ def getApproxContourPolygon(cnt, accuracy=0.01):
     return [Point(pnt[0][0], pnt[0][1]) for pnt in approxPoly]
 
 
+def getCntPntLs(cnt):
+    return [Point(pnt[0][0], pnt[0][1]) for pnt in cnt.tolist()]
+
+
 def isPointInContour(pnt, cnt):
     return cv2.pointPolygonTest(cnt, pnt.toTuple(), False) == 1
