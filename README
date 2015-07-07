@@ -1,4 +1,9 @@
 This is a basic gesture recognition software for the Kinect.
+The hand is put in front of the camera, and the Kinect identifies which fingers are open and which are closed.
+
+Each finger has a range of angles it can be from the center of the palm.
+If, for instance, any fingertip found is in the angle region of the thumb, the thumb is considered open.
+
 
 
 Dependencies:
@@ -11,35 +16,25 @@ To run, type into console:
   python main.py
 
 
-Intended overall method:
-
-The software works by using a depth mask from the Kinect to identify the closest object, and assumes it is a hand.
-After this, calibration occurs, where the user holds their hand palm forward and fingers extended to the camera.
-A convex hull is drawn around the hand; the highest point on the hull is the middle finger. Other fingers are identified as points relative to this one.
-All of the convex defects of the hand are taken, these will be the spaces between fingers. If none are found, the highest point on the hand is used.
-A circle is drawn around all these points and the lowest point on the hand; this circle encompasses the palm.
-The position of each finger point relative to the palm circle's center is remembered.
-Now, as the hand moves (assumed to stay upright), each of these positions relative to the palm is checked to see if the corresponding point on the hull is near that position.
-If it is, then that point must be that finger on the hand, so that finger must be extended.
-If no point is found there, then that finger must be closed. This way, combinations of open and closed fingers can represent commands, along with the hand's position.
-
 
 Implemented features:
   -produce mask only of close objects
   -finds contour with area closest to area of hand, if within error bounds then considered to be hand
   -track palm of hand as circle, use as reference point on screen
-    -uses convexity defects of hand and bottommost point of hand
+    -find convexity defects of hand and bottommost point of hand
     -draw smallest encompassing circle around these points, is palm (see circles.py)
-  -function to find fingers (assumes upright open hand facing camera) (use for calibration)
-    -takes convex hull of largest contour
-    -finds 'unique' points (remove clusters of adjacent points)
-    -highest point is middle finger, point to right is index, to left is ring, etc.
-    -return dictionary of finger names + coordinates
   -hand class
-    -used for calibrating hand and getting dict of open fingers and hand position
-    -for tracking gives dict of five bools (key = finger name, val = True if open, else False)
-    -at calibration, assumes that hand is biggest contour present
-  -functionality for left and right hand, which hand is given at initialization of hand
+    -calibration function for hand
+      -get contour polygon, points further from center than adjacent points on polygon = fingertips
+      -highest point is middle finger, to left is index, etc.
+      -get region that thumb is in when open, region that pinky is in when open, etc.
+        -get angles of fingers from palm center, angles between fingers = boundaries to finger regions
+        -store list of ranges of angles that each finger is within when open
+          -eg. {thumb: [lowest ang of thumb, max ang of thumb], ...}
+    -find all viable points on polygon to be finger
+      -if far away enough from palm and angle to palm center is within a certain finger's angle region, that finger is considered open
+      -if no finger point in that finger's angle region, that finger is considered closed
+    -return dict of fingers and bools of whether they are open or not
   -HandStats class
     -augmented hand class, able to take samples of fingers and hand position at regular intervals over time
       -sampling allows for ignorance of random image noise
@@ -50,10 +45,8 @@ Implemented features:
     -no longer detects contours if beyond a certain distance away
 
 
+
 Planned features:
-  -change finger detection algorithm to increase robustness
-    -eg. any point on hull certain dist from palm circle = fingertip, angle from center = which one (?)
-  -detect multiple hands (?)
   -deal with hand rotation to sides (?)
     -recalibrate if hand rotates a certain amount
   -gestures used to operate different programs

@@ -7,21 +7,39 @@ import numpy as np
 
 
 
-def findOpenFingerOffsets(handCnt, refPoint, isRightHand=True):
-    if handCnt==None: return None
-    fingerCoords = findOpenFingerCoords(handCnt, isRightHand=isRightHand)
-    fingerOffsets = { k : refPoint.getVectorTo(fingerCoords[k]) for k in fingerCoords.keys()}
-    return fingerOffsets
-
-
-def findOpenFingerCoords(handCnt, isRightHand=True):
-    """Get middle finger index. Vertex of hull before it is index finger, after is ring, 2 before is thumb, etc."""
-    if handCnt==None: return None
-    hullPnts = getUniqueHullPoints(handCnt)
-    midFingIndex = getMidFingIndex(hullPnts)
+def getOpenFingerVectors(handCnt, palmCirc=None, isRightHand=True):
+    if palmCirc==None or handCnt==None: return None
+    cent = palmCirc.getCenter()
     fingOffsetsFromMid = getFingIndexOffsetsFromMidFing(isRightHand=isRightHand)
-    fingerCoords = {fing : hullPnts[(midFingIndex + fingOffsetsFromMid[fing]) % len(hullPnts)] for fing in getFingList(isRightHand=isRightHand)}
-    return fingerCoords
+    fingPnts = getOpenFingerPnts(handCnt, palmCirc=palmCirc)
+    midFingIndex = getMidFingIndex(fingPnts)
+    fingNameLs = getFingList(isRightHand=isRightHand)
+    fingPntDict = {fing: fingPnts[(midFingIndex + fingOffsetsFromMid[fing]) % len(fingPnts)] for fing in fingNameLs}
+    return {fing: cent.getVectorTo(fingPntDict[fing]) for fing in fingNameLs}
+
+
+def getOpenFingerPnts(handCnt, palmCirc=None):
+    if palmCirc==None or handCnt==None: return None
+    fingPnts = []
+    poly = getApproxContourPolygon(handCnt, accuracy=0.015)
+    cent = palmCirc.getCenter(); rad = palmCirc.getRadius()
+    for i in range(len(poly)):
+        # fingers at accute angle points, accute if adjacent points are closer to center than it
+        pnt = poly[i]; pntAfter = poly[(i+1)%len(poly)]; pntBefore = poly[(i-1)%len(poly)]
+        if pntAfter.getDistTo(cent) < pnt.getDistTo(cent) and pntBefore.getDistTo(cent) < pnt.getDistTo(cent):
+            if pnt.getDistTo(cent) > (rad+25):
+                fingPnts.append(pnt)
+    return fingPnts
+
+
+def getFingAngRegions(handCnt, palmCirc, isRightHand=True):
+    fingNames = getFingList(isRightHand=isRightHand)
+    fingVecs = getOpenFingerVectors(handCnt, palmCirc, isRightHand=isRightHand)
+    betweenFingAngs = getAngsBetweenVecs([fingVecs[fing] for fing in fingNames])
+    fingAngBounds = list(reversed(sorted([math.pi]+betweenFingAngs+[0])))  # angs from pi to 0, all angles between finger vectors
+    # fingNames in order from leftmost finger's name to right
+    # leftmost finger has largest angle to horizontal (<1,0>), so its boundaries = 1rst items in fingAngBounds
+    return {fingNames[i]: sorted([fingAngBounds[i], fingAngBounds[i+1]]) for i in range(len(fingNames))}
 
 
 def getFingIndexOffsetsFromMidFing(isRightHand=True):
@@ -33,6 +51,11 @@ def getFingIndexOffsetsFromMidFing(isRightHand=True):
 def getMidFingIndex(hullPnts):
     midFingCoords = min(hullPnts, key=lambda pnt: pnt.getY())  # assume highest point on hull = middle finger
     return hullPnts.index(midFingCoords)
+
+
+def getAngsBetweenVecs(vecLs):
+    vecAngLs = [vec.getAngFromHoriz() for vec in vecLs]
+    return [average([vecAngLs[i], vecAngLs[i+1]]) for i in range(len(vecAngLs)-1)]
 
 
 def getFingList(isRightHand=True):
@@ -52,7 +75,7 @@ def getHighestNotFingPnt(hand, mask):
 
 class Hand(object):
     def __init__(self, isRight=True):
-        self.fingerOffsets = {}
+        self.fingAngRegions = {}
         self.palmCirc = None
         self.handArea = 0
         self.calibrated = False
@@ -61,8 +84,7 @@ class Hand(object):
     def calibrate(self, mask):
         handCnt = getBiggestContour(getContours(mask))
         self.palmCirc = self.getPalmCircle(mask)
-        refPoint = self.palmCirc.getCenter()
-        self.fingerOffsets = findOpenFingerOffsets(handCnt, refPoint, isRightHand=self.isRight)
+        self.fingAngRegions = getFingAngRegions(handCnt, self.palmCirc, isRightHand=self.isRight)
         self.handArea = cv2.moments(handCnt)['m00']
         self.calibrated = True
 
@@ -75,10 +97,10 @@ class Hand(object):
     def getOpenFingers(self, mask):
         if not self.isOnScreen(mask): return None
         handCnt = self.findHandCnt(mask)
+        fingVecs = [self.palmCirc.getCenter().getVectorTo(pnt) for pnt in getOpenFingerPnts(handCnt, self.palmCirc)]
         openFingers = {}
         for finger in getFingList(isRightHand=self.isRight):
-            fingPosIfOpen = self.fingerOffsets[finger].translateCoord(self.getHandPos(mask))
-            openFingers[finger] = True if anyHullVerticesNear(handCnt, fingPosIfOpen, radius=25) else False
+            openFingers[finger] = any([self.fingAngRegions[finger][0] <= vec.getAngFromHoriz() <= self.fingAngRegions[finger][1] for vec in fingVecs])
         return openFingers
 
     def getHandPos(self, mask):

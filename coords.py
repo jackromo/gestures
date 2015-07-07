@@ -42,9 +42,21 @@ class Vector(object):
         self.y = y
     def getGradient(self):
         return self.y/float(self.x)
+    def getLength(self):
+        return Point(0, 0).getDistTo(Point(self.getX(), self.getY()))
     def multWithConst(self, const):
         return Vector(self.getX()*const, self.getY()*const)
+    def dotProdWith(self, vec):
+        return (self.getX()*vec.getX()) + (self.getY()*vec.getY())
     def translateCoord(self, pnt):
         return Point(pnt.getX()+self.getX(), pnt.getY()+self.getY())
+    def getAngFromHoriz(self):
+        #angle in radians
+        if self.getX()!=0:
+            dot = self.dotProdWith(Vector(1, 0))
+            return math.acos(dot/float(self.getLength()))
+        elif self.getY()>0: return math.pi/2.0
+        elif self.getY()<0: return -math.pi/2.0
+        else: return None
     def toTuple(self):
         return (int(self.getX()), int(self.getY()))

@@ -6,8 +6,6 @@ from coords import *
 
 
 
-
-
 def performFuncOverInterval(func, *args, **kwargs):
     interval = kwargs.pop('interval', 0.01)  # only kwarg = interval, default val = 0.01
     intervalStartTime = time.time()

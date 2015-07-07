@@ -1,4 +1,4 @@
-import math, time, cv2 #, freenect
+import math, time, cv2
 import numpy as np
 from hand import *
 from coords import *
@@ -18,7 +18,7 @@ def main():
         contours = getContours(mask)
         if len(contours)==0: continue
 
-        img = cv2.cvtColor(depthMap, cv2.COLOR_GRAY2RGB)
+        img = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
 
         if hand.isCalibrated() and hand.isOnScreen(mask):
             img = drawHand(img, hand, mask)
@@ -37,11 +37,23 @@ def drawHand(img, hand, mask):
         handCnt = hand.findHandCnt(mask)
         handCirc = hand.getPalmCircle(mask)
         img = highlightCnt(img, handCnt)
-        for fing in getFingList():
-            img = drawFingDetectionRegion(img, hand, refPoint=handCirc.getCenter(), fingName=fing, isFingOpen=(fingDict[fing]>0.5))
-        img = drawHandCntEndFingPoints(img, handCnt)
+        img = drawCntPolygon(img, handCnt)
+        img = drawFingPoints(img, hand, mask, openFingLs=fingDict)
         img = drawPalmCircle(img, handCirc)
-        img = drawTextInCorner(img, 'Hand Found')
+        img = drawTextInCorner(img, 'Hand found')
+    return img
+
+
+def drawFingPoints(img, hand, mask, openFingLs=None):
+    fingPnts = getOpenFingerPnts(hand.findHandCnt(mask), palmCirc=hand.getPalmCircle(mask))
+    for pnt in fingPnts: img = cv2.circle(img, pnt.toTuple(), 10, (127,127,127), 2)
+    return img
+
+
+def drawCntPolygon(img, cnt):
+    poly = getApproxContourPolygon(cnt, accuracy=0.01)
+    for i in range(len(poly)):
+        img = cv2.line(img, poly[i].toTuple(), poly[(i+1)%len(poly)].toTuple(), (0, 0, 255), 3)
     return img
 
 
@@ -53,20 +65,6 @@ def highlightCnt(img, cnt):
 def drawPalmCircle(img, handCirc):
     img = cv2.circle(img, handCirc.getCenter().toTuple(), int(handCirc.getRadius()), (255, 0, 0), 3)
     img = cv2.circle(img, handCirc.getCenter().toTuple(), 5, (255, 0, 0), -1)
-    return img
-
-
-def drawFingDetectionRegion(img, hand, refPoint=Point(0,0), fingName='thumb', isFingOpen=True):
-    img = cv2.line(img, refPoint.toTuple(), \
-            hand.fingerOffsets[fingName].translateCoord(refPoint).toTuple(), (255, 0, 255), 3)
-    circColor = (0, 255, 255) if isFingOpen else (0, 0, 127)
-    img = cv2.circle(img, hand.fingerOffsets[fingName].translateCoord(refPoint).toTuple(), 50, circColor, 2)
-    return img
-
-
-def drawHandCntEndFingPoints(img, handCnt):
-    for fingEndCoord in findOpenFingerCoords(handCnt).values():
-        img = cv2.circle(img, fingEndCoord.toTuple(), 5, (0, 0, 255), -1)
     return img
 
 
